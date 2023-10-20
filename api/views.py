@@ -3,11 +3,28 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import UserSerializer, MyTokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import User
+from rest_framework_simplejwt.views import TokenRefreshView
+
+
+class MyTokenRefreshView(TokenRefreshView):
+    serializer_class = MyTokenObtainPairSerializer
 
 
 @api_view(['POST'])
 def login(request):
-    return Response({})
+    user = get_object_or_404(User, username=request.data['username'])
+    if not user.check_password(request.data['password']):
+        return Response("missing user", status=status.HTTP_404_NOT_FOUND)
+    # Generate access token using MyTokenObtainPairSerializer
+    access_token = MyTokenObtainPairSerializer().get_token(user)
+
+    # Generate refresh token using RefreshToken
+    refresh_token = RefreshToken.for_user(user)
+
+    # Return both tokens and user data with 201 Created status code
+    return Response({'access': str(access_token.access_token), 'refresh': str(refresh_token), }, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
